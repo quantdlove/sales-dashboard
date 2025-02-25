@@ -10,27 +10,37 @@ export async function POST(req) {
     const leadData = await req.json();
     console.log("Received data from Zapier:", leadData);
 
-    // 2) Create Supabase client
+    // 2) Validate that all required fields exist
+    //    e.g. "date", "Leads", "status_of_lead", "icp", "company"
+    //    If any are missing, skip insertion
+    const { date, Leads, status_of_lead, icp, company } = leadData;
+
+    if (!date || !Leads || !status_of_lead || !icp || !company) {
+      console.log("Skipping insert due to missing field(s).");
+      return NextResponse.json(
+        { success: false, error: "One or more required fields missing." },
+        { status: 400 }
+      );
+    }
+
+    // 3) Create Supabase client
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // 3) Insert into "Leads" table
-    //    Make sure the keys in leadData match your column names:
-    //    { date, status_of_lead, icp, company, Leads }
-    //    e.g. "Leads" is the column for the person's name
-    const { data, error } = await supabase
+    // 4) Insert into your "Leads" table
+    const { data: inserted, error } = await supabase
       .from("Leads")
       .insert([leadData])
-      .select("*"); // optionally returning inserted rows
+      .select("*");
 
     if (error) {
       console.error("Supabase insert error:", error);
       throw error;
     }
 
-    console.log("Inserted row(s):", data);
+    console.log("Inserted row(s):", inserted);
 
-    // 4) Return success
-    return NextResponse.json({ success: true, inserted: data });
+    // 5) Return success
+    return NextResponse.json({ success: true, inserted });
   } catch (err) {
     console.error("Error in update-leads endpoint:", err);
     return NextResponse.json(

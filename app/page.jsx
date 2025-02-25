@@ -7,7 +7,7 @@ import {
   CardTitle,
   CardContent,
 } from "../src/components/ui/card"; 
-// ^ IMPORTANT: Only one "../" because "app" and "src" are siblings.
+// ^ If your "Card" components live at ../src/components/ui/card/index.jsx, keep this path
 
 import { Users, Mail, Calendar, TrendingUp } from "lucide-react";
 import {
@@ -96,11 +96,16 @@ function DashboardView({ data }) {
 
   // Build weekly data for the line chart & table
   const generateWeeklyData = () => {
-    // Sunday-based start-of-week
+    // *** MONDAY-based start-of-week ***
     const getWeekStart = (date) => {
       const d = new Date(date);
       d.setHours(0, 0, 0, 0);
-      d.setDate(d.getDate() - d.getDay());
+
+      // d.getDay(): 0=Sunday, 1=Monday, etc.
+      // Make Monday = day 0 => (d.getDay() + 6) % 7
+      const day = (d.getDay() + 6) % 7;
+      d.setDate(d.getDate() - day);
+
       return d;
     };
 

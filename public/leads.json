@@ -1,0 +1,32 @@
+[
+    {
+      "Date": 1708300800000,
+      "Lead Name": "John Doe",
+      "Status of lead": "Lead Generated",
+      "ICP": "IRO"
+    },
+    {
+      "Date": 1708387200000,
+      "Lead Name": "Jane Smith",
+      "Status of lead": "Emailed",
+      "ICP": "IRC"
+    },
+    {
+      "Date": 1708473600000,
+      "Lead Name": "Robert Johnson",
+      "Status of lead": "Demo",
+      "ICP": "BS"
+    },
+    {
+      "Date": 1708560000000,
+      "Lead Name": "Alice Williams",
+      "Status of lead": "Lead Generated",
+      "ICP": "IRO"
+    },
+    {
+      "Date": 1708560000000,
+      "Lead Name": "Michael Brown",
+      "Status of lead": "Emailed",
+      "ICP": "IRC"
+    }
+  ]

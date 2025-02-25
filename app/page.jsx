@@ -3,55 +3,47 @@
 import React, { useState, useEffect } from "react";
 
 export default function Page() {
-  const [leads, setLeads] = useState([]);
+  const [rows, setRows] = useState([]);
 
   useEffect(() => {
     async function loadLeads() {
       try {
-        const res = await fetch("/api/get-leads");
-        if (!res.ok) {
-          console.error("Response not OK:", res.status, res.statusText);
-          return;
-        }
-        const data = await res.json();
-        console.log("Got from /api/get-leads:", data);
-
-        if (Array.isArray(data)) {
-          setLeads(data);
-        } else {
-          console.error("Data from /api/get-leads is not an array:", data);
-          setLeads([]);
-        }
+        const response = await fetch("/api/get-leads");
+        const data = await response.json();
+        setRows(data);
       } catch (error) {
         console.error("Error fetching leads:", error);
+        setRows([]);
       }
     }
     loadLeads();
   }, []);
 
   return (
-    <main className="p-6 space-y-4">
-      <h1 className="text-3xl font-bold">Sales Pipeline Dashboard</h1>
-      <p>We have {leads.length} leads in Supabase!</p>
+    <main className="p-6">
+      <h1 className="text-2xl font-bold mb-4">Sales Pipeline Dashboard</h1>
+      <p>We have {rows.length} leads in Supabase!</p>
 
-      <table className="min-w-full border">
+      <table className="min-w-full border mt-4">
         <thead className="bg-gray-100">
           <tr>
-            <th className="border p-2 text-left">ID</th>
-            <th className="border p-2 text-left">Date</th>
-            <th className="border p-2 text-left">Status</th>
-            <th className="border p-2 text-left">ICP</th>
-            <th className="border p-2 text-left">Company</th>
+            <th className="p-2 border">id</th>
+            <th className="p-2 border">date</th>
+            <th className="p-2 border">status_of_lead</th>
+            <th className="p-2 border">icp</th>
+            <th className="p-2 border">company</th>
+            <th className="p-2 border">leads</th>
           </tr>
         </thead>
         <tbody>
-          {leads.map((item) => (
-            <tr key={item.id}>
-              <td className="border p-2">{item.id}</td>
-              <td className="border p-2">{item.date}</td>
-              <td className="border p-2">{item.status_of_lead}</td>
-              <td className="border p-2">{item.icp}</td>
-              <td className="border p-2">{item.company}</td>
+          {rows.map((row) => (
+            <tr key={row.id} className="border-b">
+              <td className="p-2 border">{row.id}</td>
+              <td className="p-2 border">{row.date}</td>
+              <td className="p-2 border">{row.status_of_lead}</td>
+              <td className="p-2 border">{row.icp}</td>
+              <td className="p-2 border">{row.company}</td>
+              <td className="p-2 border">{row.leads}</td>
             </tr>
           ))}
         </tbody>

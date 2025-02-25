@@ -6,15 +6,20 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 export async function POST(req) {
   try {
+    // 1) Parse JSON from Zapier
     const leadData = await req.json();
     console.log("Received data from Zapier:", leadData);
 
+    // 2) Create Supabase client
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Insert into your "Leads" table
+    // 3) Insert into your "Leads" table
+    //    Make sure the keys in leadData match your column names:
+    //    { "date": "...", "status_of_lead": "...", "icp": "...", "company": "...", "leads": "..." }
     const { error } = await supabase.from("Leads").insert([leadData]);
     if (error) throw error;
 
+    // 4) Return success
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("Error in update-leads endpoint:", err);

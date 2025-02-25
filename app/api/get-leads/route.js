@@ -1,47 +1,38 @@
-"use client";
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
-import React, { useState, useEffect } from "react";
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-export default function Page() {
-  const [leads, setLeads] = useState([]);
+export async function GET() {
+  try {
+    // Debug logs
+    console.log("Supabase URL:", supabaseUrl);
+    console.log("Supabase KEY (first 10 chars):", supabaseKey?.slice(0, 10));
 
-  useEffect(() => {
-    async function loadLeads() {
-      try {
-        const response = await fetch("/api/get-leads");
-        const data = await response.json();
-        setLeads(data);
-      } catch (error) {
-        console.error("Error fetching leads:", error);
-      }
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // IMPORTANT: If your table is named exactly "Leads" (capital L), keep "Leads".
+    // The columns you said exist: id, date, status_of_lead, icp, company
+    const { data, error } = await supabase
+      .from("Leads")
+      .select("id, date, status_of_lead, icp, company"); 
+      // Removed "leads" because that column doesn't exist
+
+    if (error) {
+      console.error("Supabase query error:", error);
+      throw error;
     }
-    loadLeads();
-  }, []);
 
-  return (
-    <main className="p-6 space-y-4">
-      <h1 className="text-3xl font-bold">Sales Dashboard</h1>
-      <p>We have {leads.length} leads in Supabase!</p>
+    console.log("Fetched rows:", data.length);
 
-      {/* Example table */}
-      <table className="min-w-full border">
-        <thead className="bg-gray-100">
-          <tr>
-            <th className="border p-2 text-left">ID</th>
-            <th className="border p-2 text-left">Name</th>
-            <th className="border p-2 text-left">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {leads.map((lead) => (
-            <tr key={lead.id}>
-              <td className="border p-2">{lead.id}</td>
-              <td className="border p-2">{lead.name}</td>
-              <td className="border p-2">{lead.status_of_lead}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </main>
-  );
+    // Return rows to the front end
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error("Error in get-leads endpoint:", error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
+  }
 }

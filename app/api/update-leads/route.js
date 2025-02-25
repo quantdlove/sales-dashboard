@@ -13,14 +13,24 @@ export async function POST(req) {
     // 2) Create Supabase client
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // 3) Insert into your "Leads" table
+    // 3) Insert into "Leads" table
     //    Make sure the keys in leadData match your column names:
-    //    { "date": "...", "status_of_lead": "...", "icp": "...", "company": "...", "leads": "..." }
-    const { error } = await supabase.from("Leads").insert([leadData]);
-    if (error) throw error;
+    //    { date, status_of_lead, icp, company, Leads }
+    //    e.g. "Leads" is the column for the person's name
+    const { data, error } = await supabase
+      .from("Leads")
+      .insert([leadData])
+      .select("*"); // optionally returning inserted rows
+
+    if (error) {
+      console.error("Supabase insert error:", error);
+      throw error;
+    }
+
+    console.log("Inserted row(s):", data);
 
     // 4) Return success
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, inserted: data });
   } catch (err) {
     console.error("Error in update-leads endpoint:", err);
     return NextResponse.json(

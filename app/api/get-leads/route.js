@@ -6,28 +6,26 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 export async function GET() {
   try {
-    // Debug logs: watch these in VS Code Terminal
+    // Debug logs (viewable in your Vercel or local terminal logs)
     console.log("Supabase URL:", supabaseUrl);
     console.log("Supabase KEY (first 10 chars):", supabaseKey?.slice(0, 10));
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Table is named "Leads" (capital L).
-    // Columns: id, date, status_of_lead, icp, company, Leads (capital L).
-    // We'll select them all explicitly (case-sensitive).
+    // Query the "Leads" table (capital L).
+    // Columns: id, date, status_of_lead, icp, company, Leads
     const { data, error } = await supabase
-      .from("Leads") // Must match your table name exactly
-      .select("id, date, status_of_lead, icp, company, Leads"); 
-      // "Leads" here is the column storing the person's name, as seen in your screenshot.
+      .from("Leads")
+      .select("id, date, status_of_lead, icp, company, Leads");
 
     if (error) {
       console.error("Supabase query error:", error);
       throw error;
     }
 
-    console.log("Fetched rows:", data.length); // Expecting 91 if your table has 91 leads
+    console.log("Fetched rows:", data?.length || 0);
 
-    // Return the rows to your front-end
+    // Return the rows as JSON to the front-end
     return NextResponse.json(data);
   } catch (err) {
     console.error("Error in get-leads endpoint:", err);

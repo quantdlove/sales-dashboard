@@ -7,7 +7,7 @@ import {
   CardTitle,
   CardContent,
 } from "../src/components/ui/card"; 
-// ^ If your "Card" components live at ../src/components/ui/card/index.jsx, keep this path
+// ^ Adjust this path if your Card components live elsewhere.
 
 import { Users, Mail, Calendar, TrendingUp } from "lucide-react";
 import {
@@ -284,6 +284,22 @@ export default function ExecutiveDashboard() {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [currentWeek, setCurrentWeek] = useState("");
 
+  // We'll define loadData as a separate function so we can call it from a button too.
+  const loadData = async () => {
+    try {
+      const response = await fetch("/api/get-leads");
+      if (!response.ok) {
+        throw new Error(`Error fetching data: ${response.status}`);
+      }
+      const leadsData = await response.json();
+      setData(leadsData);
+      setLastUpdated(new Date());
+    } catch (error) {
+      console.error("Error loading data:", error);
+      setData([]);
+    }
+  };
+
   // Avoid hydration mismatch by setting date in useEffect
   useEffect(() => {
     const now = new Date().toLocaleDateString("en-US", {
@@ -294,25 +310,9 @@ export default function ExecutiveDashboard() {
     setCurrentWeek(now);
   }, []);
 
-  // Fetch from your Supabase route
+  // Load data on mount and every 15 minutes
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const response = await fetch("/api/get-leads");
-        if (!response.ok) {
-          throw new Error(`Error fetching data: ${response.status}`);
-        }
-        const leadsData = await response.json();
-        setData(leadsData);
-        setLastUpdated(new Date());
-      } catch (error) {
-        console.error("Error loading data:", error);
-        setData([]);
-      }
-    };
-
     loadData();
-    // Refresh every 15 minutes
     const intervalId = setInterval(loadData, 15 * 60 * 1000);
     return () => clearInterval(intervalId);
   }, []);
@@ -324,6 +324,7 @@ export default function ExecutiveDashboard() {
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      {/* Header with Force Refresh button */}
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold">SALES PIPELINE DASHBOARD</h1>
@@ -331,10 +332,15 @@ export default function ExecutiveDashboard() {
             Week of {currentWeek || "Loading..."}
           </p>
         </div>
-        <div className="text-right">
-          <p className="text-sm text-gray-500">
-            Last Updated: {lastUpdatedString}
-          </p>
+        <div className="text-right space-y-2">
+          <p className="text-sm text-gray-500">Last Updated: {lastUpdatedString}</p>
+          {/* Force Refresh Button */}
+          <button
+            onClick={loadData}
+            className="px-4 py-2 mt-1 rounded-lg text-sm font-medium bg-blue-500 text-white hover:bg-blue-600"
+          >
+            Force Refresh
+          </button>
         </div>
       </div>
 

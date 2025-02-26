@@ -1,37 +1,30 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+import { createClient } from '@supabase/supabase-js'
 
 export async function GET() {
-  try {
-    // Debug logs (viewable in your Vercel or local terminal logs)
-    console.log("Supabase URL:", supabaseUrl);
-    console.log("Supabase KEY (first 10 chars):", supabaseKey?.slice(0, 10));
+  // 1) Grab environment variables
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  
+  // 2) Create Supabase client with the service_role key
+  const supabase = createClient(supabaseUrl, serviceRoleKey)
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+  // 3) Query your "Leads" table
+  const { data, error } = await supabase
+    .from('Leads')
+    .select('*') // or specify columns, e.g. .select('id, name, ...')
+    // .order('id', { ascending: false }) // optional: sort by ID descending
 
-    // Query the "Leads" table (capital L).
-    // Columns: id, date, status_of_lead, icp, company, Leads
-    const { data, error } = await supabase
-      .from("Leads")
-      .select("id, date, status_of_lead, icp, company, Leads");
-
-    if (error) {
-      console.error("Supabase query error:", error);
-      throw error;
-    }
-
-    console.log("Fetched rows:", data?.length || 0);
-
-    // Return the rows as JSON to the front-end
-    return NextResponse.json(data);
-  } catch (err) {
-    console.error("Error in get-leads endpoint:", err);
-    return NextResponse.json(
-      { success: false, error: err.message },
-      { status: 500 }
-    );
+  // 4) Handle any errors
+  if (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    })
   }
+
+  // 5) Return the data as JSON
+  return new Response(JSON.stringify(data), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  })
 }

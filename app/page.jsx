@@ -1,14 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from "../src/components/ui/card"; 
-// ^ Adjust this path if your Card components live elsewhere.
-
+import { Card, CardHeader, CardTitle, CardContent } from "../src/components/ui/card"; 
 import { Users, Mail, Calendar, TrendingUp } from "lucide-react";
 import {
   LineChart,
@@ -21,7 +14,7 @@ import {
   ResponsiveContainer
 } from "recharts";
 
-// A reusable Metric Card
+// Reusable metric card
 const MetricCard = ({ icon: Icon, title, value, total, subValue, subLabel }) => (
   <div className="flex-1 flex items-center space-x-3 bg-white rounded-lg p-4 shadow">
     <div className="rounded-full p-2 bg-blue-50">
@@ -44,7 +37,7 @@ const MetricCard = ({ icon: Icon, title, value, total, subValue, subLabel }) => 
   </div>
 );
 
-// Filter button
+// Simple filter button
 const FilterButton = ({ label, active, onClick }) => (
   <button
     onClick={onClick}
@@ -58,7 +51,7 @@ const FilterButton = ({ label, active, onClick }) => (
   </button>
 );
 
-// The child dashboard component with metrics, chart, and table
+// ----- DASHBOARD VIEW -----
 function DashboardView({ data }) {
   const [filter, setFilter] = useState("all");
 
@@ -66,83 +59,158 @@ function DashboardView({ data }) {
   const filteredData =
     filter === "all"
       ? data
-      : data.filter(
-          (d) => d.icp && d.icp.toUpperCase() === filter.toUpperCase()
-        );
+      : data.filter((d) => d.icp && d.icp.toUpperCase() === filter.toUpperCase());
 
-  // Calculate metrics
+  // Basic metrics
   const totalLeads = filteredData.length;
+  
+  // "Emailed" + "Demo" => emailedLeads
   const emailedLeads = filteredData.filter(
     (d) => d.status_of_lead === "Emailed" || d.status_of_lead === "Demo"
   ).length;
-  const demoLeads = filteredData.filter((d) => d.status_of_lead === "Demo").length;
 
-  // Some define "Leads Generated" strictly as "Lead Generated" status,
-  // but you might prefer counting everything in the pipeline:
+  // Just "Demo" => demoLeads
+  const demoLeads = filteredData.filter(
+    (d) => d.status_of_lead === "Demo"
+  ).length;
+
+  // "Lead Generated", "Opened", "Emailed", "Demo" => leadsGenerated
   const leadsGenerated = filteredData.filter(
     (d) =>
       d.status_of_lead === "Lead Generated" ||
+      d.status_of_lead === "Opened" ||
       d.status_of_lead === "Emailed" ||
       d.status_of_lead === "Demo"
   ).length;
 
   // Coverage, conversion, velocity
-  const emailRate =
-    totalLeads > 0 ? ((emailedLeads / totalLeads) * 100).toFixed(1) : 0;
-  const demoRate =
-    emailedLeads > 0 ? ((demoLeads / emailedLeads) * 100).toFixed(1) : 0;
-  const velocity =
-    totalLeads > 0 ? ((demoLeads / totalLeads) * 100).toFixed(1) : 0;
+  const emailRate = totalLeads > 0 ? ((emailedLeads / totalLeads) * 100).toFixed(1) : 0;
+  const demoRate  = emailedLeads > 0 ? ((demoLeads / emailedLeads) * 100).toFixed(1) : 0;
+  const velocity  = totalLeads > 0 ? ((demoLeads / totalLeads) * 100).toFixed(1) : 0;
 
-  // Build weekly data for the line chart & table
+  // Monday-based start-of-week
+  const getWeekStart = (date) => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    // Sunday=0, Monday=1 => shift so Monday=0 => (day+6)%7
+    const day = (d.getDay() + 6) % 7;
+    d.setDate(d.getDate() - day);
+    return d;
+  };
+
+  // ----- ENHANCED parseDate -----
+  // Tries multiple formats:
+  // 1) Direct new Date() parse
+  // 2) "YYYY-MM-DD HH:MM:SS" => "YYYY-MM-DDTHH:MM:SSZ"
+  // 3) "YYYY-MM-DD" => "YYYY-MM-DDT00:00:00Z"
+  // 4) "M/D/YY" fallback
+  const parseDate = (dateString) => {
+    if (!dateString) return null;
+
+    // Try direct parse first (handles ISO like "2025-02-26T00:00:00Z")
+    let dt = new Date(dateString);
+    if (!isNaN(dt.getTime())) {
+      return dt;
+    }
+
+    // If there's a dash, assume "YYYY-MM-DD" format
+    if (dateString.includes("-")) {
+      // If there's a space, replace with "T" => "2025-02-26T00:00:00"
+      if (dateString.includes(" ")) {
+        dateString = dateString.replace(" ", "T");
+      } else {
+        // If there's no time part, add "T00:00:00"
+        if (!dateString.includes("T")) {
+          dateString += "T00:00:00";
+        }
+      }
+      // If no trailing "Z", add it => UTC
+      if (!dateString.endsWith("Z")) {
+        dateString += "Z";
+      }
+      dt = new Date(dateString);
+      if (!isNaN(dt.getTime())) {
+        return dt;
+      }
+    }
+
+    // Fallback: maybe "M/D/YY"
+    const parts = dateString.split("/");
+    if (parts.length === 3) {
+      let [month, day, year] = parts.map((x) => parseInt(x, 10));
+      if (year < 100) {
+        year += 2000;
+      }
+      dt = new Date(year, month - 1, day);
+      if (!isNaN(dt.getTime())) {
+        return dt;
+      }
+    }
+
+    // If all else fails
+    return null;
+  };
+
+  // ----- GROUP LEADS BY WEEK -----
   const generateWeeklyData = () => {
-    // *** MONDAY-based start-of-week ***
-    const getWeekStart = (date) => {
-      const d = new Date(date);
-      d.setHours(0, 0, 0, 0);
+    const weeklyGroups = {};
 
-      // d.getDay(): 0=Sunday, 1=Monday, etc.
-      // Make Monday = day 0 => (d.getDay() + 6) % 7
-      const day = (d.getDay() + 6) % 7;
-      d.setDate(d.getDate() - day);
+    filteredData.forEach((lead) => {
+      if (!lead.date) return;
+      const dateObj = parseDate(lead.date);
+      if (!dateObj || isNaN(dateObj.getTime())) return; // skip invalid
 
-      return d;
-    };
+      const weekStart = getWeekStart(dateObj);
+      const weekKey = weekStart.toISOString().split("T")[0]; // "YYYY-MM-DD"
 
-    const weeklyGroups = filteredData.reduce((acc, item) => {
-      if (!item.date) return acc;
-      const dateObj = new Date(item.date);
-      if (isNaN(dateObj)) return acc; // skip invalid
-      const weekStart = getWeekStart(dateObj).toISOString();
-      if (!acc[weekStart]) acc[weekStart] = [];
-      acc[weekStart].push(item);
-      return acc;
-    }, {});
+      if (!weeklyGroups[weekKey]) {
+        weeklyGroups[weekKey] = {
+          dateObj: weekStart,
+          leads: 0,
+          emailed: 0,
+          demos: 0,
+        };
+      }
 
-    let summaries = Object.entries(weeklyGroups).map(([weekStartISO, items]) => {
-      const generated = items.filter((d) => d.status_of_lead === "Lead Generated").length;
-      const emailed = items.filter((d) => d.status_of_lead === "Emailed").length;
-      const demos = items.filter((d) => d.status_of_lead === "Demo").length;
+      weeklyGroups[weekKey].leads++;
+      if (lead.status_of_lead === "Emailed") {
+        weeklyGroups[weekKey].emailed++;
+      }
+      if (lead.status_of_lead === "Demo") {
+        weeklyGroups[weekKey].demos++;
+      }
+    });
 
-      const totalLeadsThisWeek = generated + emailed + demos;
-      // "Emails" might be emailed + demos if you treat "demo" as "already emailed"
-      const totalEmails = emailed + demos;
+    // Convert to array
+    let summaries = Object.entries(weeklyGroups).map(([weekKey, group]) => {
+      const totalLeads = group.leads;
+      const totalEmails = group.emailed + group.demos;
 
       return {
-        week: `Week of ${new Date(weekStartISO).toLocaleDateString("en-US", {
+        week: `Week of ${group.dateObj.toLocaleDateString("en-US", {
           month: "short",
           day: "numeric",
         })}`,
-        leads: totalLeadsThisWeek,
+        sortKey: weekKey,
+        leads: totalLeads,
         emails: totalEmails,
-        demos,
+        demos: group.demos,
+        emailRate: totalLeads
+          ? ((totalEmails / totalLeads) * 100).toFixed(1)
+          : "0.0",
+        demoRate: totalEmails
+          ? ((group.demos / totalEmails) * 100).toFixed(1)
+          : "0.0",
       };
     });
 
-    // Sort ascending by date
-    summaries.sort((a, b) => new Date(a.week) - new Date(b.week));
-    // Keep last 4
-    summaries = summaries.slice(-4);
+    // Sort ascending
+    summaries.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+
+    // Keep last 4 weeks
+    if (summaries.length > 4) {
+      summaries = summaries.slice(-4);
+    }
     return summaries;
   };
 
@@ -206,7 +274,7 @@ function DashboardView({ data }) {
         />
       </div>
 
-      {/* Chart + Table (two columns) */}
+      {/* Chart & Table */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
@@ -221,9 +289,24 @@ function DashboardView({ data }) {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Line type="monotone" dataKey="leads" name="Leads" stroke="#8884d8" />
-                  <Line type="monotone" dataKey="emails" name="Emails" stroke="#82ca9d" />
-                  <Line type="monotone" dataKey="demos" name="Demos" stroke="#ffc658" />
+                  <Line
+                    type="monotone"
+                    dataKey="leads"
+                    name="Leads"
+                    stroke="#8884d8"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="emails"
+                    name="Emails"
+                    stroke="#82ca9d"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="demos"
+                    name="Demos"
+                    stroke="#ffc658"
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -248,26 +331,16 @@ function DashboardView({ data }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {weeklyData.map((row) => {
-                    const emailRate = (
-                      (row.emails / (row.leads || 1)) *
-                      100
-                    ).toFixed(1);
-                    const demoRate = (
-                      (row.demos / (row.emails || 1)) *
-                      100
-                    ).toFixed(1);
-                    return (
-                      <tr key={row.week} className="border-b">
-                        <td className="p-2">{row.week}</td>
-                        <td className="p-2 text-right">{row.leads}</td>
-                        <td className="p-2 text-right">{row.emails}</td>
-                        <td className="p-2 text-right">{row.demos}</td>
-                        <td className="p-2 text-right">{emailRate}%</td>
-                        <td className="p-2 text-right">{demoRate}%</td>
-                      </tr>
-                    );
-                  })}
+                  {weeklyData.map((row) => (
+                    <tr key={row.week} className="border-b">
+                      <td className="p-2">{row.week}</td>
+                      <td className="p-2 text-right">{row.leads}</td>
+                      <td className="p-2 text-right">{row.emails}</td>
+                      <td className="p-2 text-right">{row.demos}</td>
+                      <td className="p-2 text-right">{row.emailRate}%</td>
+                      <td className="p-2 text-right">{row.demoRate}%</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -278,30 +351,51 @@ function DashboardView({ data }) {
   );
 }
 
-// The main page that fetches data from /api/get-leads
+// ----- MAIN PAGE -----
 export default function ExecutiveDashboard() {
   const [data, setData] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [currentWeek, setCurrentWeek] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // We'll define loadData as a separate function so we can call it from a button too.
   const loadData = async () => {
+    setIsLoading(true);
+    setError(null);
+
     try {
-      const response = await fetch("/api/get-leads");
-      if (!response.ok) {
-        throw new Error(`Error fetching data: ${response.status}`);
+      const res = await fetch("/api/get-leads");
+      if (!res.ok) {
+        throw new Error(`Error fetching data: ${res.status}`);
       }
-      const leadsData = await response.json();
-      setData(leadsData);
+      const leadsData = await res.json();
+      console.log("Fetched leads:", leadsData.length);
+
+      // Map Supabase columns -> fields used in the dashboard
+      // (Status_of_lead -> status_of_lead, Date -> date, etc.)
+      const validated = leadsData.map((lead) => ({
+        ...lead,
+        id: lead.id || `temp-${Math.random()}`,
+        status_of_lead: lead.Status_of_lead || "Unknown",
+        date: lead.Date || null,
+        icp: lead.ICP || "",
+        lead_name: lead.Lead_Name || "",
+        company: lead.Company || "",
+      }));
+
+      setData(validated);
       setLastUpdated(new Date());
-    } catch (error) {
-      console.error("Error loading data:", error);
+      setIsLoading(false);
+    } catch (err) {
+      console.error("Error loading data:", err);
+      setError(`Failed to load data: ${err.message}`);
       setData([]);
+      setIsLoading(false);
     }
   };
 
-  // Avoid hydration mismatch by setting date in useEffect
   useEffect(() => {
+    // Avoid hydration mismatch for date
     const now = new Date().toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
@@ -310,21 +404,19 @@ export default function ExecutiveDashboard() {
     setCurrentWeek(now);
   }, []);
 
-  // Load data on mount and every 15 minutes
+  // Load data on mount, refresh every 15 minutes
   useEffect(() => {
     loadData();
     const intervalId = setInterval(loadData, 15 * 60 * 1000);
     return () => clearInterval(intervalId);
   }, []);
 
-  // Show "Loading..." if we haven't set lastUpdated yet
   const lastUpdatedString = lastUpdated
     ? lastUpdated.toLocaleString()
     : "Loading...";
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      {/* Header with Force Refresh button */}
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold">SALES PIPELINE DASHBOARD</h1>
@@ -332,19 +424,29 @@ export default function ExecutiveDashboard() {
             Week of {currentWeek || "Loading..."}
           </p>
         </div>
-        <div className="text-right space-y-2">
+        <div className="text-right">
           <p className="text-sm text-gray-500">Last Updated: {lastUpdatedString}</p>
-          {/* Force Refresh Button */}
           <button
             onClick={loadData}
-            className="px-4 py-2 mt-1 rounded-lg text-sm font-medium bg-blue-500 text-white hover:bg-blue-600"
+            className="px-4 py-2 mt-2 rounded-lg text-sm font-medium bg-blue-500 text-white hover:bg-blue-600"
+            disabled={isLoading}
           >
-            Force Refresh
+            {isLoading ? "Refreshing..." : "Force Refresh"}
           </button>
         </div>
       </div>
 
-      <DashboardView data={data} />
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
+        </div>
+      )}
+
+      {isLoading && data.length === 0 ? (
+        <div className="text-center py-10">Loading dashboard data...</div>
+      ) : (
+        <DashboardView data={data} />
+      )}
     </div>
   );
 }

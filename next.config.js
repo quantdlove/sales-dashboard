@@ -16,7 +16,24 @@ const nextConfig = {
     // your project has type errors.
     // !! WARN !!
     ignoreBuildErrors: true,
-  }
+  },
+  // Enable Pages Router along with App Router for backward compatibility
+  experimental: {
+    appDir: true,
+  },
+  // Custom rewrites to handle routing issues
+  async rewrites() {
+    return [
+      {
+        source: '/',
+        destination: '/app/page',
+      },
+      {
+        source: '/api/:path*',
+        destination: '/api/:path*',
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

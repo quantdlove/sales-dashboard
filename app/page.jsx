@@ -54,27 +54,52 @@ const FilterButton = ({ label, active, onClick }) => (
 // ----- DASHBOARD VIEW -----
 function DashboardView({ data }) {
   const [filter, setFilter] = useState("all");
-  const [debugInfo, setDebugInfo] = useState('');
-
-  // Filter data by ICP if not "all"
-  const filteredData =
-    filter === "all"
+  const [filteredData, setFilteredData] = useState([]);
+  
+  // Use effect to filter data when filter or data changes
+  useEffect(() => {
+    const filtered = filter === "all"
       ? data
       : data.filter((d) => d.icp && d.icp.toUpperCase() === filter.toUpperCase());
+    
+    setFilteredData(filtered);
+    
+    // Count valid/invalid dates for debugging
+    let validDateCount = 0;
+    let invalidDateCount = 0;
+    
+    filtered.forEach(lead => {
+      if (!lead.date) {
+        invalidDateCount++;
+        return;
+      }
+      
+      const dateObj = parseDate(lead.date);
+      if (!dateObj || isNaN(dateObj.getTime())) {
+        invalidDateCount++;
+        return;
+      }
+      
+      validDateCount++;
+    });
+    
+    console.log(`Filtered data: ${filtered.length} records, Valid dates: ${validDateCount}, Invalid: ${invalidDateCount}`);
+  }, [filter, data]);
   
   // Basic metrics - cumulative totals since tracking began
   const totalLeads = filteredData.length;
   
   // Count in each status - for display at the top of the dashboard
-  const leadsInGeneratedStatus = filteredData.filter(
-    (d) => d.status_of_lead === "Lead Generated"
+  // For the first stage, include any lead that doesn't have a status or has a default status
+  const leadsInLeadsStatus = filteredData.filter(
+    (d) => !d.status_of_lead || d.status_of_lead === "Leads" || d.status_of_lead === "Lead Generated"
   ).length;
   
   const leadsInEmailedStatus = filteredData.filter(
     (d) => d.status_of_lead === "Emailed"
   ).length;
   
-  // Check for any status containing "Open" or "opened"
+  // Check for status containing "Open" or "opened"
   const leadsInOpenedStatus = filteredData.filter(
     (d) => {
       const status = d.status_of_lead || "";
@@ -110,67 +135,59 @@ function DashboardView({ data }) {
     return new Date(d.setDate(diff));
   };
 
-  // Parse date strings in various formats with improved safety
+  // Parse date formats from Google Sheets/Supabase
   const parseDate = (dateString) => {
     if (!dateString || typeof dateString !== 'string') return null;
     
-    // Sanitize input - remove any potentially harmful characters
-    const sanitized = dateString.trim().replace(/[^\w\s\-\/\:\.]/gi, '');
-    if (!sanitized) return null;
-
-    // Try ISO format first
     try {
-      // Try direct ISO parse
-      const isoDate = new Date(sanitized);
-      if (!isNaN(isoDate.getTime())) {
-        return isoDate;
+      // Handle M/D/YYYY format from Google Sheets (e.g., "2/5/2025")
+      if (dateString.includes("/")) {
+        const parts = dateString.split("/");
+        if (parts.length === 3) {
+          const month = parseInt(parts[0], 10) - 1; // 0-based month
+          const day = parseInt(parts[1], 10);
+          const year = parseInt(parts[2], 10);
+          
+          const date = new Date(year, month, day);
+          if (!isNaN(date.getTime())) {
+            return date;
+          }
+        }
       }
       
-      // Try with ISO formatting
-      if (sanitized.includes("-")) {
-        let isoString = sanitized;
-        
-        // If there's a space, replace with "T"
-        if (isoString.includes(" ")) {
-          isoString = isoString.replace(" ", "T");
-        } else if (!isoString.includes("T")) {
-          // If there's no time part, add "T00:00:00"
-          isoString += "T00:00:00";
-        }
-        
-        const parsedDate = new Date(isoString);
-        if (!isNaN(parsedDate.getTime())) {
-          return parsedDate;
+      // Handle PostgreSQL timestamp format (YYYY-MM-DD 00:00:00+00)
+      if (dateString.includes("-") && (dateString.includes("+00") || dateString.includes("T"))) {
+        const datePart = dateString.substring(0, 10);
+        const date = new Date(datePart);
+        if (!isNaN(date.getTime())) {
+          return date;
         }
       }
+      
+      // Try parsing directly as ISO date
+      const date = new Date(dateString);
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
     } catch (e) {
-      console.error("ISO date parsing error:", e);
+      console.error("Date parsing error:", e);
     }
 
-    // Try MM/DD/YYYY format
+    // If direct parsing fails, try a more explicit approach
     try {
-      const parts = sanitized.split("/");
-      if (parts.length === 3) {
-        let [month, day, year] = parts.map(x => parseInt(x.trim(), 10));
-        
-        // Validate parts
-        if (isNaN(month) || isNaN(day) || isNaN(year)) return null;
-        
-        // Handle 2-digit years
-        if (year < 100) {
-          year += year < 50 ? 2000 : 1900;
-        }
-        
-        // Validate ranges (basic validation)
-        if (month < 1 || month > 12 || day < 1 || day > 31) return null;
-        
-        const mmddDate = new Date(year, month - 1, day);
-        if (!isNaN(mmddDate.getTime())) {
-          return mmddDate;
+      // Match format YYYY-MM-DD
+      const dateRegex = /^(\d{4})-(\d{2})-(\d{2})/;
+      const match = dateString.match(dateRegex);
+      
+      if (match) {
+        const [_, year, month, day] = match;
+        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        if (!isNaN(date.getTime())) {
+          return date;
         }
       }
     } catch (e) {
-      console.error("MM/DD/YYYY parsing error:", e);
+      console.error("Regex date parsing error:", e);
     }
 
     // If all parsing attempts fail
@@ -187,30 +204,21 @@ function DashboardView({ data }) {
       // First, we need to determine which 4 weeks to show
       const allWeekStarts = new Set();
       
-      // Count how many leads have valid dates
-      let validDateCount = 0;
-      let invalidDateCount = 0;
-      
       // Process all leads with dates
       filteredData.forEach(lead => {
         if (!lead.date) {
-          invalidDateCount++;
           return;
         }
         
         const dateObj = parseDate(lead.date);
         if (!dateObj || isNaN(dateObj.getTime())) {
-          invalidDateCount++;
           return;
         }
         
-        validDateCount++;
         const weekStart = getWeekStart(dateObj);
         const weekKey = weekStart.toISOString().split("T")[0];
         allWeekStarts.add(weekKey);
       });
-      
-      setDebugInfo(`Valid dates: ${validDateCount}, Invalid: ${invalidDateCount}`);
       
       // If we have no valid dates, return an empty array
       if (allWeekStarts.size === 0) {
@@ -225,8 +233,8 @@ function DashboardView({ data }) {
       sortedWeeks.forEach(weekKey => {
         weeklyGroups[weekKey] = {
           dateObj: new Date(weekKey),
-          leadGenerated: 0,
-          emailed: 0,
+          leads: 0,
+          emails: 0,
           opened: 0,
           demo: 0
         };
@@ -245,24 +253,31 @@ function DashboardView({ data }) {
         if (!weeklyGroups[weekKey]) return;
         
         // Count leads by status for each week
-        if (lead.status_of_lead === "Lead Generated") {
-          weeklyGroups[weekKey].leadGenerated++;
-        } else if (lead.status_of_lead === "Emailed") {
-          weeklyGroups[weekKey].emailed++;
-        } else if (lead.status_of_lead === "Opened" || 
-                  (lead.status_of_lead && 
-                  (lead.status_of_lead.includes("Open") || 
-                  lead.status_of_lead.includes("open")))) {
+        // Increment the appropriate counter based on lead status
+        if (!lead.status_of_lead || lead.status_of_lead === "Leads" || lead.status_of_lead === "Lead Generated") {
+          weeklyGroups[weekKey].leads++;
+        } 
+        
+        if (lead.status_of_lead === "Emailed") {
+          weeklyGroups[weekKey].emails++;
+        } 
+        
+        if (lead.status_of_lead === "Opened" || 
+           (lead.status_of_lead && 
+           (lead.status_of_lead.includes("Open") || 
+           lead.status_of_lead.includes("open")))) {
           weeklyGroups[weekKey].opened++;
-        } else if (lead.status_of_lead === "Demo") {
+        } 
+        
+        if (lead.status_of_lead === "Demo") {
           weeklyGroups[weekKey].demo++;
         }
       });
 
       // Format for display
       return Object.entries(weeklyGroups).map(([weekKey, data]) => {
-        const totalLeadsInWeek = data.leadGenerated + data.emailed + data.opened + data.demo;
-        const totalEmailed = data.emailed + data.opened + data.demo;
+        const totalLeadsInWeek = data.leads + data.emails + data.opened + data.demo;
+        const totalEmailed = data.emails + data.opened + data.demo;
         return {
           week: `Week of ${data.dateObj.toLocaleDateString("en-US", {
             month: "short",
@@ -297,18 +312,18 @@ function DashboardView({ data }) {
         />
         <FilterButton
           label="IRO"
-          active={filter === "iro"}
-          onClick={() => setFilter("iro")}
+          active={filter === "IRO"}
+          onClick={() => setFilter("IRO")}
         />
         <FilterButton
           label="IRC"
-          active={filter === "irc"}
-          onClick={() => setFilter("irc")}
+          active={filter === "IRC"}
+          onClick={() => setFilter("IRC")}
         />
         <FilterButton
-          label="Buy Side"
-          active={filter === "bs"}
-          onClick={() => setFilter("bs")}
+          label="BS"
+          active={filter === "BS"}
+          onClick={() => setFilter("BS")}
         />
       </div>
 
@@ -316,40 +331,40 @@ function DashboardView({ data }) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           icon={Users}
-          title="Leads Generated"
+          title="Total Leads"
           value={totalLeads}
           total={totalLeads}
         />
         <MetricCard
           icon={Mail}
-          title="Accounts Emailed"
-          value={emailedLeads}
+          title="Emailed"
+          value={leadsInEmailedStatus}
           total={totalLeads}
           subValue={emailRate}
-          subLabel="Coverage"
+          subLabel="of Total"
         />
         <MetricCard
           icon={Calendar}
           title="Opened"
-          value={openedLeads}
-          total={emailedLeads}
+          value={leadsInOpenedStatus}
+          total={leadsInEmailedStatus}
           subValue={openedRate}
-          subLabel="Response"
+          subLabel="of Emailed"
         />
         <MetricCard
           icon={TrendingUp}
           title="Demo"
-          value={demoLeads}
-          total={openedLeads}
+          value={leadsInDemoStatus}
+          total={leadsInOpenedStatus}
           subValue={demoRate}
-          subLabel="Conversion"
+          subLabel="of Opened"
         />
       </div>
 
-      {/* Debug info - can be removed in production */}
-      {debugInfo && (
-        <div className="text-xs text-gray-500 mb-2">{debugInfo}</div>
-      )}
+      {/* Debug info - implemented through console.log only */}
+      <div className="text-xs text-gray-500 mb-2">
+        {filter !== "all" ? `Filtered by: ${filter}` : "Showing all leads"}
+      </div>
 
       {/* Chart & Table */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -469,15 +484,30 @@ export default function ExecutiveDashboard() {
       console.log("Fetched leads:", leadsData.length);
 
       // Map Supabase columns -> fields used in the dashboard
-      // Handle both upper and lower case field names from API
-      const validated = leadsData.map((lead) => ({
-        id: lead.id || `temp-${Math.random()}`,
-        status_of_lead: lead.Status_of_lead || lead.status_of_lead || "Unknown",
-        date: lead.Date || lead.date || null,
-        icp: lead.ICP || lead.icp || "",
-        lead_name: lead.Lead_Name || lead.lead_name || "",
-        company: lead.Company || lead.company || ""
-      }));
+      // Handle field names with correct casing and format from Google Sheets/Supabase
+      const validated = [];
+      
+      leadsData.forEach((lead) => {
+        // Format the data to make debugging easier
+        const formatted = {
+          id: lead.id || lead.ID || `temp-${Math.random()}`,
+          status_of_lead: lead.Status_of_lead || lead.status_of_lead || "",
+          date: lead.Date || lead.date || null,
+          icp: lead.ICP || lead.icp || "",
+          lead_name: lead.Lead_Name || lead.lead_name || "",
+          company: lead.Company || lead.company || ""
+        };
+        
+        // Log first few records to help debug
+        if (validated.length < 3) {
+          console.log("Sample lead data:", JSON.stringify(formatted, null, 2));
+        }
+        
+        validated.push(formatted);
+      });
+
+      // Add debug logs for date values
+      console.log("Sample date values:", validated.slice(0, 5).map(lead => lead.date));
 
       setData(validated);
       setLastUpdated(new Date());

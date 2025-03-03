@@ -73,39 +73,50 @@ export async function GET() {
 function formatAndReturnResponse(data) {
   if (!data || data.length === 0) {
     // If no data found, return empty array
+    console.log('No data found in Supabase response');
     return new Response(JSON.stringify([]), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
   }
   
+  // Log the first record to see what we're working with
+  console.log('Sample Supabase record:', JSON.stringify(data[0], null, 2));
+  
   // Sample the first record to determine column names
   const sampleRecord = data[0];
   const hasUppercaseKeys = sampleRecord && ('Lead_Name' in sampleRecord || 'Status_of_lead' in sampleRecord);
+  
+  console.log('Using uppercase keys:', hasUppercaseKeys);
   
   // Map the data to the expected format based on actual column names
   const formattedData = data.map(lead => {
     if (hasUppercaseKeys) {
       return {
-        id: lead.id,
-        Date: lead.Date,
-        Lead_Name: lead.Lead_Name,
-        Status_of_lead: lead.Status_of_lead,
-        ICP: lead.ICP,
-        Company: lead.Company
+        id: lead.id || `temp-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        date: lead.Date,
+        lead_name: lead.Lead_Name,
+        status_of_lead: lead.Status_of_lead,
+        icp: lead.ICP,
+        company: lead.Company
       };
     } else {
       // Assume lowercase column names
       return {
-        id: lead.id,
-        Date: lead.date,
-        Lead_Name: lead.lead_name,
-        Status_of_lead: lead.status_of_lead,
-        ICP: lead.icp,
-        Company: lead.company
+        id: lead.id || `temp-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        date: lead.date,
+        lead_name: lead.lead_name,
+        status_of_lead: lead.status_of_lead,
+        icp: lead.icp,
+        company: lead.company
       };
     }
   });
+  
+  // Log a sample of the processed data
+  if (formattedData.length > 0) {
+    console.log('Sample processed record:', JSON.stringify(formattedData[0], null, 2));
+  }
   
   console.log(`Successfully processed ${formattedData.length} leads`);
   

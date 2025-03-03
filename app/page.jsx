@@ -51,34 +51,6 @@ const FilterButton = ({ label, active, onClick }) => (
   </button>
 );
 
-// Sample data for when there's no data available
-const getSampleWeeklyData = () => {
-  const today = new Date();
-  const weeks = [];
-  
-  // Generate 4 weeks of sample data
-  for (let i = 0; i < 4; i++) {
-    const weekStart = new Date(today);
-    weekStart.setDate(weekStart.getDate() - (i * 7)); // go back i weeks
-    
-    const month = weekStart.toLocaleString('en-US', { month: 'short' });
-    const day = weekStart.getDate();
-    
-    weeks.push({
-      week: `Week of ${month} ${day}`,
-      sortKey: weekStart.toISOString().split('T')[0],
-      leads: 10 - i,
-      emails: 8 - i,
-      opened: 5 - i,
-      demo: Math.max(0, 2 - i),
-      emailRate: ((8 - i) / (10 - i) * 100).toFixed(1),
-      demoRate: ((Math.max(0, 2 - i)) / (8 - i) * 100).toFixed(1)
-    });
-  }
-  
-  return weeks.reverse(); // Sort earliest to latest
-};
-
 // ----- DASHBOARD VIEW -----
 function DashboardView({ data }) {
   const [filter, setFilter] = useState("all");
@@ -240,34 +212,17 @@ function DashboardView({ data }) {
       
       setDebugInfo(`Valid dates: ${validDateCount}, Invalid: ${invalidDateCount}`);
       
-      // If we have no valid dates, return sample data
+      // If we have no valid dates, return an empty array
       if (allWeekStarts.size === 0) {
-        console.log('No valid dates found in leads data, using sample data');
-        return getSampleWeeklyData();
+        console.log('No valid dates found in leads data');
+        return [];
       }
       
-      // Sort all week starts and keep the most recent 4
+      // Sort all week starts and keep all weeks for display
       const sortedWeeks = Array.from(allWeekStarts).sort();
-      let recentWeeks = sortedWeeks.slice(-4);
-      
-      // If we have fewer than 4 weeks, add more recent weeks
-      if (recentWeeks.length < 4) {
-        // Get most recent week or current week
-        const mostRecentWeek = recentWeeks.length > 0 
-          ? new Date(recentWeeks[recentWeeks.length - 1])
-          : getWeekStart(new Date());
-        
-        // Add future weeks if needed
-        for (let i = recentWeeks.length; i < 4; i++) {
-          const weekDate = new Date(mostRecentWeek);
-          weekDate.setDate(weekDate.getDate() + ((i - recentWeeks.length + 1) * 7)); // Go forward
-          const weekKey = weekDate.toISOString().split("T")[0];
-          recentWeeks.push(weekKey);
-        }
-      }
       
       // Initialize the weekly data structures
-      recentWeeks.forEach(weekKey => {
+      sortedWeeks.forEach(weekKey => {
         weeklyGroups[weekKey] = {
           dateObj: new Date(weekKey),
           leadGenerated: 0,
@@ -325,7 +280,7 @@ function DashboardView({ data }) {
       
     } catch (error) {
       console.error('Error generating weekly data:', error);
-      return getSampleWeeklyData();
+      return [];
     }
   };
 

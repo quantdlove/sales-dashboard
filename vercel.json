@@ -1,11 +1,8 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
-  "installCommand": "npm install",
-  "framework": "nextjs",
-  "outputDirectory": ".next",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/" }
+  "regions": ["sfo1"],
+  "routes": [
+    { "src": "/(.*)", "dest": "/" }
   ],
   "env": {
     "NEXT_PUBLIC_SUPABASE_URL": "https://vfxvfmifmsugmrxkojkg.supabase.co",

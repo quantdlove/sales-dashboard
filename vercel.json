@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "app/**/*",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/app/$1"
+    }
+  ],
+  "env": {
+    "NEXT_PUBLIC_SUPABASE_URL": "https://vfxvfmifmsugmrxkojkg.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmeHZmbWlmbXN1Z21yeGtvamtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA0MzI4MDQsImV4cCI6MjA1NjAwODgwNH0.n2Wj9q4pxUyMahROC4mw_BW1tVIwV7JG046cD06hbfU"
+  }
+}

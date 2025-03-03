@@ -144,18 +144,38 @@ def process_data(data):
         if col in df.columns:
             df[col] = df[col].fillna('')
     
-    # Convert date to datetime
+    # Convert date to datetime with better handling of various formats
     if 'date' in df.columns:
+        # First attempt with pandas default parser
         df['date'] = pd.to_datetime(df['date'], errors='coerce')
+        
+        # Check how many valid dates we have
+        valid_dates = df['date'].notna().sum()
+        total_rows = len(df)
+        
+        st.info(f"Found {valid_dates} valid dates out of {total_rows} rows ({round(valid_dates/total_rows*100 if total_rows > 0 else 0, 1)}%)")
+        
+        # Log some sample values for debugging
+        if valid_dates < total_rows:
+            problematic_dates = df[df['date'].isna()]['date'].head(5).tolist()
+            st.warning(f"Sample problematic date values: {problematic_dates}")
+            
+            # For debug - show the first few rows of data
+            st.write("First 3 rows of data:", df.head(3))
     
     return df
 
 # Function to get the Monday of the week containing the given date
 def get_week_start(date):
-    if pd.isna(date):
+    # Handle null, NaT, or invalid dates
+    if pd.isna(date) or not isinstance(date, datetime):
         return None
-    weekday = date.weekday()  # 0 = Monday, 6 = Sunday
-    return date - timedelta(days=weekday)
+    try:
+        weekday = date.weekday()  # 0 = Monday, 6 = Sunday
+        return date - timedelta(days=weekday)
+    except Exception as e:
+        st.error(f"Error processing date {date}: {str(e)}")
+        return None
 
 # Main title
 st.title("SALES PIPELINE DASHBOARD")
@@ -308,8 +328,17 @@ if 'date' in filtered_df.columns:
             st.plotly_chart(fig, use_container_width=True)
         
         with tabs[1]:
-            # Display table
+            # Display table with better handling of potential NaN values
             table_df = weekly_df[['week_label', 'leads', 'emails', 'opened', 'demo', 'email_rate', 'demo_rate']]
+            # Fill any NaN values
+            table_df = table_df.fillna(0)
+            # Convert numeric columns to integers for better display
+            for col in ['leads', 'emails', 'opened', 'demo']:
+                table_df[col] = table_df[col].astype(int)
+            # Format the rate columns
+            table_df['email_rate'] = table_df['email_rate'].apply(lambda x: f"{x:.1f}")
+            table_df['demo_rate'] = table_df['demo_rate'].apply(lambda x: f"{x:.1f}")
+            # Rename for display
             table_df = table_df.rename(columns={
                 'week_label': 'Week', 
                 'leads': 'Leads',
@@ -319,7 +348,20 @@ if 'date' in filtered_df.columns:
                 'email_rate': 'Email Rate (%)',
                 'demo_rate': 'Demo Rate (%)'
             })
-            st.dataframe(table_df, use_container_width=True)
+            # Display the table with Streamlit
+            st.dataframe(
+                table_df,
+                use_container_width=True,
+                column_config={
+                    "Week": st.column_config.TextColumn("Week"),
+                    "Leads": st.column_config.NumberColumn("Leads", format="%d"),
+                    "Emails": st.column_config.NumberColumn("Emails", format="%d"),
+                    "Opened": st.column_config.NumberColumn("Opened", format="%d"),
+                    "Demo": st.column_config.NumberColumn("Demo", format="%d"),
+                    "Email Rate (%)": st.column_config.TextColumn("Email Rate (%)"),
+                    "Demo Rate (%)": st.column_config.TextColumn("Demo Rate (%)")
+                }
+            )
     else:
         st.warning("No weekly data available. Check if dates are correctly formatted in your data.")
 else:

@@ -1,70 +1,105 @@
 import React from 'react';
 import Head from 'next/head';
 
-// Create a simple landing page that just redirects to the Python dashboard
 export default function Home() {
   return (
-    <>
+    <div>
       <Head>
         <title>Sales Dashboard</title>
-        <meta name="description" content="Sales pipeline dashboard with Supabase integration" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="description" content="Sales Pipeline Dashboard" />
+        <link rel="icon" href="/favicon.ico" />
       </Head>
-    <div style={{ 
-      height: '100vh', 
-      display: 'flex', 
-      flexDirection: 'column',
-      justifyContent: 'center', 
-      alignItems: 'center',
-      fontFamily: 'system-ui, sans-serif',
-      backgroundColor: '#f0f4f8',
-      padding: '2rem'
-    }}>
-      <div style={{ 
-        maxWidth: '600px', 
-        backgroundColor: 'white', 
-        padding: '2rem',
-        borderRadius: '0.5rem',
-        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-        textAlign: 'center'
+
+      <main style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        padding: '1rem'
       }}>
-        <h1 style={{ fontSize: '2rem', marginBottom: '1rem', color: '#3182ce' }}>
-          Sales Dashboard
-        </h1>
-        <p style={{ color: '#4a5568', marginBottom: '2rem' }}>
-          The dashboard is now available as a Python app!
-        </p>
-        
-        <div style={{ marginBottom: '2rem' }}>
-          <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem', color: '#4a5568' }}>
-            How to Run the Dashboard
-          </h2>
-          <div style={{ textAlign: 'left', backgroundColor: '#f7fafc', padding: '1rem', borderRadius: '0.25rem' }}>
-            <ol style={{ marginLeft: '1.5rem', lineHeight: '1.6' }}>
+        <div style={{
+          maxWidth: '800px',
+          width: '100%',
+          textAlign: 'center',
+          background: 'white',
+          borderRadius: '8px',
+          padding: '2rem',
+          boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+        }}>
+          <h1 style={{ 
+            fontSize: '2.5rem', 
+            fontWeight: 'bold',
+            marginBottom: '1rem',
+            color: '#3182ce'
+          }}>
+            Sales Pipeline Dashboard
+          </h1>
+          
+          <p style={{ 
+            fontSize: '1.2rem', 
+            marginBottom: '2rem',
+            color: '#4a5568'
+          }}>
+            An interactive dashboard for sales pipeline analytics with Supabase integration
+          </p>
+          
+          <div style={{
+            marginBottom: '2rem', 
+            backgroundColor: '#f7fafc', 
+            padding: '1.5rem', 
+            borderRadius: '6px',
+            textAlign: 'left'
+          }}>
+            <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem', color: '#2d3748' }}>
+              How to Run the Dashboard
+            </h2>
+            <ol style={{ 
+              marginLeft: '1.5rem', 
+              lineHeight: '1.6',
+              color: '#4a5568'
+            }}>
               <li>Clone the repository</li>
-              <li>Install dependencies: <code style={{ background: '#edf2f7', padding: '0.2rem 0.4rem' }}>pip install -r requirements.txt</code></li>
-              <li>Run the dashboard: <code style={{ background: '#edf2f7', padding: '0.2rem 0.4rem' }}>streamlit run dashboard.py</code></li>
+              <li>Install Python dependencies: <code style={{backgroundColor: '#edf2f7', padding: '0.2rem 0.4rem', borderRadius: '4px'}}>pip install -r requirements.txt</code></li>
+              <li>Run the dashboard: <code style={{backgroundColor: '#edf2f7', padding: '0.2rem 0.4rem', borderRadius: '4px'}}>streamlit run dashboard.py</code></li>
             </ol>
           </div>
+          
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
+            <a
+              href="https://github.com/quantdlove/sales-dashboard/blob/python-dashboard/dashboard.py"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                padding: '0.75rem 1.5rem',
+                backgroundColor: '#3182ce',
+                color: 'white',
+                borderRadius: '4px',
+                textDecoration: 'none',
+                fontWeight: 'bold'
+              }}
+            >
+              View Dashboard Code
+            </a>
+            <a
+              href="https://github.com/quantdlove/sales-dashboard/blob/python-dashboard/README.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                padding: '0.75rem 1.5rem',
+                backgroundColor: '#e2e8f0',
+                color: '#2d3748',
+                borderRadius: '4px',
+                textDecoration: 'none',
+                fontWeight: 'bold'
+              }}
+            >
+              View Documentation
+            </a>
+          </div>
         </div>
-        
-        <a 
-          href="https://github.com/quantdlove/sales-dashboard/blob/python-dashboard/dashboard.py"
-          style={{
-            display: 'inline-block',
-            backgroundColor: '#3182ce',
-            color: 'white',
-            padding: '0.75rem 1.5rem',
-            borderRadius: '0.25rem',
-            textDecoration: 'none',
-            fontWeight: 'bold',
-            marginTop: '1rem'
-          }}
-        >
-          View on GitHub
-        </a>
-      </div>
+      </main>
     </div>
-    </>
   );
 }

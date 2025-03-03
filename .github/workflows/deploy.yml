@@ -1,52 +1,30 @@
-name: Deploy Dashboard
-
+name: Deploy to Vercel
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches: ['main', 'master']
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          
+      - name: Install dependencies
+        run: npm ci
         
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install streamlit pandas plotly requests
+      - name: Build
+        run: npm run build
         
-    - name: Lint with flake8
-      run: |
-        pip install flake8
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 dashboard.py --count --select=E9,F63,F7,F82 --show-source --statistics
-        
-    - name: Test dashboard setup
-      run: |
-        python -c "import streamlit; import pandas; import plotly; import requests; print('All imports successful')"
-        
-    - name: Install Streamlit on server
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      run: |
-        echo "Installing Streamlit and dependencies on server..."
-        # In a real setup, this would SSH into your server and install dependencies
-        
-    - name: Deploy to server
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      run: |
-        echo "Deploying dashboard to server..."
-        # In a real setup, this would copy files to your server and restart the service
-        
-    - name: Notify deployment status
-      if: always()
-      run: |
-        echo "Deployment completed with status: ${{ job.status }}"
+      - name: Deploy to Vercel
+        uses: vercel/action@v1
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.ORG_ID }}
+          vercel-project-id: ${{ secrets.PROJECT_ID }}
+          vercel-args: '--prod'

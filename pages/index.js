@@ -1,8 +1,15 @@
 import React from 'react';
+import Head from 'next/head';
 
 // Create a simple landing page that just redirects to the Python dashboard
 export default function Home() {
   return (
+    <>
+      <Head>
+        <title>Sales Dashboard</title>
+        <meta name="description" content="Sales pipeline dashboard with Supabase integration" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </Head>
     <div style={{ 
       height: '100vh', 
       display: 'flex', 
@@ -58,5 +65,6 @@ export default function Home() {
         </a>
       </div>
     </div>
+    </>
   );
 }
